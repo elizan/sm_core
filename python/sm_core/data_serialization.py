@@ -28,6 +28,7 @@
 #either expressed or implied, of the FreeBSD Project.
 #
 import h5py
+import numpy as np
 
 
 class SM_serial(object):
@@ -45,22 +46,29 @@ class SM_serial(object):
         '''
         Formats the name for the group that goes with frame N
         '''
-        return 'frame_{0:07d}'
+        return 'frame_{0:07d}'.format(N)
 
-    def __init__(fname, fmode=None):
+    def __init__(self, fname, fmode=None):
         '''
         :param fname: string, full path to the file to open
-        :param fmode: in the subset 'r', 'rw', 'w+', 'w'
+        :param fmode: in the set 'r', 'r+', 'w', 'w-', 'a'
            r: read only, error if does not exist
-           rw: read/write, error if does not exist
-           w+: rw, will create if it does not exist
+           r+: read/write, error if does not exist
+           a:
+           w-: rw, will create if it does not exist
            w: create new file, WILL DELETE IF DOES EXIST
 
         It can be argued that this work should really be done in a
         class function, and then have the __init__ function take a
         h5py like object.
         '''
-        VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a', None}
+
+        if fmode is None:
+            fmode = 'a'
+
+        VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a'}
+        # TODO add brains to keep track if the objcet is writable and raise
+        # reasonable errors
         if fmode not in VALID_FILE_MODES:
             print "invalid mode, converting to 'a'"
             fmode = 'a'
@@ -88,7 +96,7 @@ class SM_serial(object):
         Raises a sensible exception if data set does not exist or the
         frame number is out of range
         '''
-        return self._file[self.format_frame_name(frame_num)][data_set][:]
+        return self._file[self._format_frame_name(frame_num)][data_set][:]
 
     def dumps(self, frame_num, data_set, data, meta_data=None, over_write=False, **kwargs):
         '''
@@ -103,6 +111,7 @@ class SM_serial(object):
         A function that dumps data to disk.  The meta-data is associated with the data set.
         '''
         # this needs to make sure the file is never left in a bad state
+        data = np.asarray(data)
         grp = self._require_grp(self._format_frame_name(frame_num))
         try:
             dset = grp[data_set]
@@ -118,9 +127,10 @@ class SM_serial(object):
                 # delete the existing data set
                 del grp[data_set]
                 dset = grp.create_dataset(data_set, data=data, **kwargs)
-        # dump the meta-data
-        for key, value in meta_data.items():
-            dset.attrs[key] = value
+        if meta_data:
+            # dump the meta-data
+            for key, value in meta_data.items():
+                dset.attrs[key] = value
 
     def set_frame_md(self, frame_num, meta_data, over_write=False):
         '''
@@ -158,7 +168,7 @@ class SM_serial(object):
         #TODO make error messages helpful
         return _object_get_md(self._file,
                               self._format_frame_name(frame_num),
-                              h5py._hl.dataset.Dataset,
+                              h5py._hl.group.Group,
                               '',
                               '')
 
@@ -172,12 +182,14 @@ class SM_serial(object):
         '''
         return _object_get_md(self._file,
                               self._format_frame_name(frame_num) + '/' + dset_name,
-                              h5py._hl.group.Group,
+                              h5py._hl.dataset.Dataset,
                               '',
                               '')
 
     def list_dsets(self, frame_num):
-        '''
+        '''Returns a recursive list of data sets in
+        this frame.
+
         :param frame_num: frame number
 
         Returns a list of the data sets in the given frame number
@@ -186,12 +198,26 @@ class SM_serial(object):
         return _subgroup_recurse(grp, '')
 
     def _require_grp(self, path):
+        """Private function to handle requiring that a group exists.
+        Returns the existing group it if exists, creates and returns
+        the group if it does not.
+
+        Prameters
+        ---------
+        path: str
+            The absolute path of the group to open/create
+
+        Returns
+        -------
+        grp: `h5py._hl.group.Group`
+            a valid group object at `path`
+
+        """
         try:
             grp = self._file.require_group(path)
         except TypeError as e:
             # TODO launder this through a custom error class
             print ("A non-group exists where at" +
-                   "the group path {0} should be.".format(self._format_frame_name(frame_num)) +
                    "Are you sure that this is a properly formatted file?" +
                    "File: {0}".format(self._file.filename))
             raise
@@ -199,12 +225,27 @@ class SM_serial(object):
         return grp
 
     def _open_group(self, path):
+        """Private function to handle opening a group.
+        Returns the group if it exists, raises
+        error if it does not.
+
+        Prameters
+        ---------
+        path: str
+            The absolute path of the group to open/create
+
+        Returns
+        -------
+        grp: `h5py._hl.group.Group`
+            a valid group object at `path`
+
+        """
+
         try:
             grp = self._file[path]
         except KeyError as e:
             # TODO launder this through a custom error class
             print ("The group does not exist" +
-                   "the group path {0} should be.".format(self._format_frame_name(frame_num)) +
                    "Are you sure that this is a properly formatted file?" +
                    "File: {0}".format(self._file.filename))
             raise e
@@ -216,19 +257,19 @@ class SM_serial(object):
 
 def _object_get_md(file, path, otype, error1='', error2=''):
     try:
-        grp = file[path]
+        obj = file[path]
     except KeyError as e:
         # TODO launder this through a custom error class
         print (error1)
         raise
-    if not isinstance(grp, otype):
+    if not isinstance(obj, otype):
         raise RuntimeError(error2)
-    return dict(grp.attrs.iteritems())
+    return dict(obj.attrs.iteritems())
 
 
 def _subgroup_recurse(base_object, base_path):
     name_list = []
-    for key in base_object.key():
+    for key in base_object.keys():
         obj = base_object[key]
         if isinstance(obj, h5py._hl.dataset.Dataset):
             name_list.append(base_path + '/' + key)
