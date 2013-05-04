@@ -42,31 +42,47 @@ class SM_serial(object):
     developing new code.
 
     '''
+    VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a'}   #: valid file modes
+
     def _format_frame_name(cls, N):
-        '''
-        Formats the name for the group that goes with frame N
+        '''Private function to format the name for the
+        group that goes with frame N
+
+        Parameters
+        ----------
+        N: int
+            The frame number
+
+        Returns
+        -------
+        ret: str
+            Properly formatted string
         '''
         return 'frame_{0:07d}'.format(N)
 
     def __init__(self, fname, fmode=None):
-        '''
-        :param fname: string, full path to the file to open
-        :param fmode: in the set 'r', 'r+', 'w', 'w-', 'a'
+        '''Init function
+
+        Parameters
+        ----------
+        fname: str
+            full path to the file to open
+        fmode: str or `None`
+           in the set 'r', 'r+', 'w', 'w-', 'a'
            r: read only, error if does not exist
            r+: read/write, error if does not exist
            a:
            w-: rw, will create if it does not exist
            w: create new file, WILL DELETE IF DOES EXIST
-
-        It can be argued that this work should really be done in a
-        class function, and then have the __init__ function take a
-        h5py like object.
+           Defaults to 'a'
         '''
+        #It can be argued that this work should really be done in a
+        #class function, and then have the __init__ function take a
+        #h5py like object.
 
         if fmode is None:
             fmode = 'a'
 
-        VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a'}
         # TODO add brains to keep track if the objcet is writable and raise
         # reasonable errors
         if fmode not in VALID_FILE_MODES:
@@ -86,29 +102,41 @@ class SM_serial(object):
         self._file.close()
 
     def loads(self, frame_num, data_set):
-        '''
-        :param frame_num: The number of the frame to get the data from
-        :param data_set: a string that is the name of the data set to get
-        :rtype:  `numpy.ndarray`
+        '''Reads the given data set from the given frame.
 
-        returns the data in the given frame and data set
+        Parameters
+        ----------
+        frame_num: int
+            The number of the frame to get the data from
+        data_set: str
+            a string that is the name of the data set to get
 
-        Raises a sensible exception if data set does not exist or the
-        frame number is out of range
+        Returns
+        -------
+        ret:  `numpy.ndarray`
+            data is dataset
         '''
+        # TODO add error checking so the raw h5 errors don't propagate up
         return self._file[self._format_frame_name(frame_num)][data_set][:]
 
     def dumps(self, frame_num, data_set, data, meta_data=None, over_write=False, **kwargs):
-        '''
-        :param frame_num: the frame to insert the data into
-        :param data_set: string like name of the data set to store
-        :param data: an `numpy.ndarray` of the data to store
-        :param meta_data: a `dict` like object full of meta-data to be stored
-        :param overwrite: if existing data should be over written, raises exception if file is read-only
+        '''Adds data to the file.  The meta-data is associated with the data set.
 
-        kwargs are passed to backing structure
+        Parameters
+        ----------
+        frame_num: int
+            the frame to insert the data into
+        data_set: str
+            name of the data set to store
+        data: `numpy.ndarray`
+            the data to store
+        meta_data: `dict` like or `None`
+            meta-data to be stored with the data set
+        overwrite: bool:
+            if existing data should be over written, defaults to False
 
-        A function that dumps data to disk.  The meta-data is associated with the data set.
+        additional kwargs are passed to backing structure
+
         '''
         # this needs to make sure the file is never left in a bad state
         data = np.asarray(data)
@@ -133,30 +161,19 @@ class SM_serial(object):
                 dset.attrs[key] = value
 
     def set_frame_md(self, frame_num, meta_data, over_write=False):
+        '''Set frame level meta-data.  Will create frame if it does not exist
+
+        Parameters
+        ----------
+        frame_num: int
+            frame number
+        meta_data: `dict` like
+            The meta-data to set
+        over_write: bool
+            if existing meta-data will be over written, will raise error if True and file is read-only
         '''
-        :param frame_num: frame number
-        :param meta_data: dictionary of meta-data
-        :type meta_data: `dict`
-        :param over_write: if existing meta-data will be over written, will raise error if True and file is read-only
-        :type over_write: `bool`
-
-        Set frame level meta-data.
-
-        Raises sensible error if frame does not exist.  Raises sensible error if trying to set data that
-        exists and `over_write==False`
-        '''
-        try:
-            grp = self._file.require_group(self._format_frame_name(frame_num))
-        except TypeError as e:
-            # TODO launder this through a custom error class
-            print ("A non-group exists where at" +
-                   "the group path {0} should be.".format(self._format_frame_name(frame_num)) +
-                   "Are you sure that this is a properly formatted file?" +
-                   "File: {0}".format(self._file.filename))
-            raise
-
-        for key, value in meta_data.items():
-            grp.attrs[key] = value
+        grp = self._require_grp(self._format_frame_name(frame_num))
+        _object_set_md(grp, meta_data, over_write)
 
     def get_frame_md(self, frame_num):
         '''
@@ -166,11 +183,9 @@ class SM_serial(object):
         Returns the meta-data dictionary for the given frame
         '''
         #TODO make error messages helpful
-        return _object_get_md(self._file,
-                              self._format_frame_name(frame_num),
-                              h5py._hl.group.Group,
-                              '',
-                              '')
+
+        grp = self._open_group(self._format_frame_name(frame_num))
+        return dict(grp.attrs.iteritems())
 
     def get_dset_md(self, frame_num, dset_name):
         '''
@@ -180,11 +195,9 @@ class SM_serial(object):
 
         Returns the meta-data dictionary for the given dset in the given frame
         '''
-        return _object_get_md(self._file,
-                              self._format_frame_name(frame_num) + '/' + dset_name,
-                              h5py._hl.dataset.Dataset,
-                              '',
-                              '')
+        grp = self._open_group(self._format_frame_name(frame_num))
+
+        return dict(grp.attrs.iteritems())
 
     def list_dsets(self, frame_num):
         '''Returns a recursive list of data sets in
@@ -202,8 +215,8 @@ class SM_serial(object):
         Returns the existing group it if exists, creates and returns
         the group if it does not.
 
-        Prameters
-        ---------
+        Parameters
+        ----------
         path: str
             The absolute path of the group to open/create
 
@@ -255,19 +268,22 @@ class SM_serial(object):
         return grp
 
 
-def _object_get_md(file, path, otype, error1='', error2=''):
-    try:
-        obj = file[path]
-    except KeyError as e:
-        # TODO launder this through a custom error class
-        print (error1)
-        raise
-    if not isinstance(obj, otype):
-        raise RuntimeError(error2)
-    return dict(obj.attrs.iteritems())
+def _object_set_md(obj, meta_data, over_write):
+    """Private function for setting meta-data
+    """
+    existing_keys = set(obj.attrs.keys())
+
+    if ((not over_write) and any(k in existing_keys
+                                 for k in meta_data.keys())):
+        raise RuntimeError("trying to over-write an existing key")
+    for key, value in meta_data.items():
+        grp.attrs[key] = value
 
 
 def _subgroup_recurse(base_object, base_path):
+    """
+    Private function for finding all the data sets under a given group
+    """
     name_list = []
     for key in base_object.keys():
         obj = base_object[key]
