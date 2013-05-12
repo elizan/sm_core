@@ -43,15 +43,15 @@ def _roundtrip_no_md(test_data):
     with infra.path_provider() as base_path:
         # hacky version of generating a random name
         tmp_fname = os.path.join(base_path,
-                                 ''.join(('test_int_roundtrip_',
+                                 ''.join(('test_roundtrip_',
                                          ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(N)),
                                          '.h5')))
-        print tmp_fname
+
         with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
             for dset_name, dtype, data in test_data:
                 for k in range(M):
                     test_sms.dumps(k, dset_name, data)
-        print 'dumped'
+
         with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
             for dset_name, dtype, data in test_data:
                 for k in range(M):
@@ -95,3 +95,51 @@ def test_complex_round_trip():
                   np.arange(50, dtype=np.dtype('complex{:d}'.format(j))))
                  for j in (64, 128)]
     _roundtrip_no_md(test_data)
+
+
+def test_frame_md():
+    N = 6
+    md_test = {'int': 1,
+               'float': 1.0,
+               'complex': 1 + 1j,
+               'numpy': np.arange(5),
+               'string': 'abc'}
+
+    with infra.path_provider() as base_path:
+        # hacky version of generating a random name
+        tmp_fname = os.path.join(base_path,
+                                 ''.join(('test_int_roundtrip_',
+                                         ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(N)),
+                                         '.h5')))
+
+        with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
+            test_sms.set_frame_md(0, md_test)
+
+        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+            read_md = test_sms.get_frame_md(0)
+            assert [read_md[k] == md_test[k] for k in md_test.keys()]
+
+
+def test_dset_md():
+    N = 6
+    md_test = {'int': 1,
+               'float': 1.0,
+               'complex': 1 + 1j,
+               'numpy': np.arange(5),
+               'string': 'abc'}
+
+    with infra.path_provider() as base_path:
+        # hacky version of generating a random name
+        tmp_fname = os.path.join(base_path,
+                                 ''.join(('test_md_roundtrip_',
+                                         ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(N)),
+                                         '.h5')))
+        test_data = range(50)
+        dset_name = 'test'
+        with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
+            test_sms.dumps(0, dset_name, test_data, meta_data=md_test)
+
+        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+            read_md = test_sms.get_dset_md(0, dset_name)
+            print read_md
+            assert [read_md[k] == md_test[k] for k in md_test.keys()]
