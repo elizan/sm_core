@@ -233,7 +233,7 @@ class SM_serial(object):
             print ("A non-group exists where at" +
                    "Are you sure that this is a properly formatted file?" +
                    "File: {0}".format(self._file.filename))
-            raise
+            raise e
 
         return grp
 
