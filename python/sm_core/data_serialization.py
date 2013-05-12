@@ -277,7 +277,7 @@ def _object_set_md(obj, meta_data, over_write):
                                  for k in meta_data.keys())):
         raise RuntimeError("trying to over-write an existing key")
     for key, value in meta_data.items():
-        grp.attrs[key] = value
+        obj.attrs[key] = value
 
 
 def _subgroup_recurse(base_object, base_path):
@@ -289,6 +289,6 @@ def _subgroup_recurse(base_object, base_path):
         obj = base_object[key]
         if isinstance(obj, h5py._hl.dataset.Dataset):
             name_list.append(base_path + '/' + key)
-        elif isinstance(obj, grp, h5py._hl.group.Group):
+        elif isinstance(obj, h5py._hl.group.Group):
             name_list.extend(_subgroup_recurse(obj, base_path + '/' + key))
     return name_list
