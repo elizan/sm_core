@@ -85,14 +85,14 @@ class SM_serial(object):
 
         # TODO add brains to keep track if the objcet is writable and raise
         # reasonable errors
-        if fmode not in VALID_FILE_MODES:
+        if fmode not in self.VALID_FILE_MODES:
             print "invalid mode, converting to 'a'"
             fmode = 'a'
         self._file = h5py.File(fname, fmode)  # modulo patching up fmode
         pass
 
-    def __del__(self):
-        self.close()
+    # def __del__(self):
+    #     self.close()
 
     def close(self):
         '''Closes backing file
@@ -147,7 +147,7 @@ class SM_serial(object):
             # this is the main behavior, it creates data set
             dset = grp.create_dataset(data_set, data=data, **kwargs)
         else:
-            if overwrite:
+            if over_write:
                 if not isinstance(dset, h5py._hl.dataset.Dataset):
                     # TODO use custom class for this exception
                     raise RuntimeError("there is a group (not a dataset) where the data set needs to go."
