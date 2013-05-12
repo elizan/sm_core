@@ -71,8 +71,8 @@ class SM_serial(object):
            in the set 'r', 'r+', 'w', 'w-', 'a'
            r: read only, error if does not exist
            r+: read/write, error if does not exist
-           a:
-           w-: rw, will create if it does not exist
+           a: Read/write if exists, create otherwise (default)
+           w-: Create file, fail if exists
            w: create new file, WILL DELETE IF DOES EXIST
            Defaults to 'a'
         '''
@@ -159,6 +159,24 @@ class SM_serial(object):
             # dump the meta-data
             for key, value in meta_data.items():
                 dset.attrs[key] = value
+
+    def update_dset_md(self, frame_num, dset_name, meta_data, over_write=False):
+        '''Update the meta-data on a dataset.
+
+        Parameters
+        ----------
+        frame_num: int
+           frame number
+        dset_name: str
+            name of the dataset
+        meta_data: `dict` like
+            The meta-data to set
+        over_write: bool
+            if existing meta-data will be over written, will raise error if True and file is read-only
+        '''
+
+        grp = self._require_grp(self._format_frame_name(frame_num))
+        _object_set_md(grp[dset_name], meta_data, over_write)
 
     def set_frame_md(self, frame_num, meta_data, over_write=False):
         '''Set frame level meta-data.  Will create frame if it does not exist
