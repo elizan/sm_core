@@ -196,8 +196,8 @@ class SM_serial(object):
         Returns the meta-data dictionary for the given dset in the given frame
         '''
         grp = self._open_group(self._format_frame_name(frame_num))
-
-        return dict(grp.attrs.iteritems())
+        dset = grp[dset_name]
+        return dict(dset.attrs.iteritems())
 
     def list_dsets(self, frame_num):
         '''Returns a recursive list of data sets in
