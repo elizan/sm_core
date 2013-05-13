@@ -2,9 +2,6 @@
  :mod:`sm_core` Package
 ========================
 
-.. automodule:: sm_core.__init__
-    :members:
-    :undoc-members:
 
 .. toctree::
 

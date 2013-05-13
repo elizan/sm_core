@@ -36,13 +36,13 @@ class SM_serial(object):
     A class to abstract away dealing with the hdf files.
 
     This class is meant to be a reference implementation for the
-    interface for dealing with the hdf5 files.  That is, this in the
-    _minimum_ functionality that must be provided for each language we
+    interface for dealing with the hdf5 files.  That is, this is the
+    *minimum* functionality that must be provided for each language we
     want to support, and what people can assume will be available when
     developing new code.
 
     '''
-    VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a'}   #: valid file modes
+    _VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a'}   #: valid file modes
 
     def _format_frame_name(cls, N):
         '''Private function to format the name for the
@@ -50,12 +50,12 @@ class SM_serial(object):
 
         Parameters
         ----------
-        N: int
+        N : int
             The frame number
 
         Returns
         -------
-        ret: str
+        ret : :py:class:`str`
             Properly formatted string
         '''
         return 'frame_{0:07d}'.format(N)
@@ -63,15 +63,23 @@ class SM_serial(object):
     @classmethod
     def open(cls, fname, fmode):
         """
-        fname: str
+        Parameters
+        ----------
+        fname : :py:class:`str`
             full path to the file to open
-        fmode: str or `None`
-           in the set 'r', 'r+', 'w', 'w-', 'a'
-           r: read only, error if does not exist
-           r+: read/write, error if does not exist
-           a: Read/write if exists, create otherwise (default)
-           w-: Create file, fail if exists
-           w: create new file, WILL DELETE IF DOES EXIST
+        fmode : :py:class:`str` or :py:class:`None`
+           in the set {'r', 'r+', 'w', 'w-', 'a'}
+
+
+           ===  ================================================
+            r   Readonly, file must exist
+            r+  Read/write, file must exist
+            w   Create file, truncate if exists
+            w-  Create file, fail if exists
+            a   Read/write if exists, create otherwise (default)
+           ===  ================================================
+
+
            Defaults to 'a'
         """
 
@@ -80,7 +88,7 @@ class SM_serial(object):
 
         # TODO add brains to keep track if the objcet is writable and raise
         # reasonable errors
-        if fmode not in cls.VALID_FILE_MODES:
+        if fmode not in cls._VALID_FILE_MODES:
             print "invalid mode, converting to 'a'"
             fmode = 'a'
         _file = h5py.File(fname, fmode)  # modulo patching up fmode
@@ -93,8 +101,8 @@ class SM_serial(object):
 
         Parameters
         ----------
-        file: `h5py.File`
-            `h5py.File` object to use and the backing store
+        file : `~h5py.File`
+            `~h5py.File` object to use and the backing store
 
         '''
         self._file = file_obj
@@ -118,14 +126,14 @@ class SM_serial(object):
 
         Parameters
         ----------
-        frame_num: int
+        frame_num : int
             The number of the frame to get the data from
-        data_set: str
+        data_set : :py:class:`str`
             a string that is the name of the data set to get
 
         Returns
         -------
-        ret:  `numpy.ndarray`
+        ret :  :py:class:`~numpy.ndarray`
             data is dataset
         '''
 
@@ -137,21 +145,20 @@ class SM_serial(object):
     def dumps(self, frame_num, data_set, data, meta_data=None, over_write=False, **kwargs):
         '''Adds data to the file.  The meta-data is associated with the data set.
 
-        Parameters
-        ----------
-        frame_num: int
-            the frame to insert the data into
-        data_set: str
-            name of the data set to store
-        data: `numpy.ndarray`
-            the data to store
-        meta_data: `dict` like or `None`
-            meta-data to be stored with the data set
-        overwrite: bool:
-            if existing data should be over written, defaults to False
-
         additional kwargs are passed to backing structure
 
+        Parameters
+        ----------
+        frame_num : int
+            the frame to insert the data into
+        data_set : :py:class:`str`
+            name of the data set to store
+        data : :py:class:`~numpy.ndarray`
+            the data to store
+        meta_data : :py:class:`dict` like or :py:class:`None`
+            meta-data to be stored with the data set
+        overwrite : bool
+            if existing data should be over written, defaults to False
         '''
 
         if not self._open:
@@ -186,13 +193,13 @@ class SM_serial(object):
 
         Parameters
         ----------
-        frame_num: int
+        frame_num : int
            frame number
-        dset_name: str
+        dset_name : :py:class:`str`
             name of the dataset
-        meta_data: `dict` like
+        meta_data : :py:class:`dict` like
             The meta-data to set
-        over_write: bool
+        over_write : bool
             if existing meta-data will be over written, will raise error if True and file is read-only
         '''
 
@@ -209,11 +216,11 @@ class SM_serial(object):
 
         Parameters
         ----------
-        frame_num: int
+        frame_num : int
             frame number
-        meta_data: `dict` like
+        meta_data : :py:class:`dict` like
             The meta-data to set
-        over_write: bool
+        over_write : bool
             if existing meta-data will be over written, will raise error if True and file is read-only
         '''
 
@@ -226,11 +233,17 @@ class SM_serial(object):
         _object_set_md(grp, meta_data, over_write)
 
     def get_frame_md(self, frame_num):
-        '''
-        :param frame_num: frame number
-        :rtype: `dict`
+        '''Returns the meta-data dictionary for the given frame
 
-        Returns the meta-data dictionary for the given frame
+        Parameters
+        ----------
+        frame_num : int
+            frame number
+
+        Returns
+        -------
+            md : :py:class:`dict`
+
         '''
 
         if not self._open:
@@ -241,12 +254,20 @@ class SM_serial(object):
         return dict(grp.attrs.iteritems())
 
     def get_dset_md(self, frame_num, dset_name):
-        '''
-        :param frame_num: frame number
-        :param dset_name: the name of the data set to get the md for
-        :rtype: `dict`
+        '''Returns the meta-data dictionary for the given dset in the given frame
 
-        Returns the meta-data dictionary for the given dset in the given frame
+        Parameters
+        ----------
+        frame_num : int
+            frame number
+
+        dset_name : :py:class:`str`
+            Name of the data set
+
+        Returns
+        -------
+            md : :py:class:`dict`
+
         '''
 
         if not self._open:
@@ -256,12 +277,14 @@ class SM_serial(object):
         return dict(dset.attrs.iteritems())
 
     def list_dsets(self, frame_num):
-        '''Returns a recursive list of data sets in
-        this frame.
+        '''Returns a list of the data sets in the given frame number
 
-        :param frame_num: frame number
+        Parameters
+        ----------
+        frame_num : int
+             frame number
 
-        Returns a list of the data sets in the given frame number
+
         '''
 
         if not self._open:
@@ -278,12 +301,12 @@ class SM_serial(object):
 
         Parameters
         ----------
-        path: str
+        path : :py:class:`str`
             The absolute path of the group to open/create
 
         Returns
         -------
-        grp: `h5py._hl.group.Group`
+        grp : `~h5py._hl.group.Group`
             a valid group object at `path`
 
         """
@@ -294,7 +317,7 @@ class SM_serial(object):
             # TODO launder this through a custom error class
             print ("A non-group exists where at" +
                    "Are you sure that this is a properly formatted file?" +
-                   "File: {0}".format(self._file.filename))
+                   "File : {0}".format(self._file.filename))
             raise e
 
         return grp
@@ -304,14 +327,14 @@ class SM_serial(object):
         Returns the group if it exists, raises
         error if it does not.
 
-        Prameters
-        ---------
-        path: str
+        Parameters
+        ----------
+        path : :py:class:`str`
             The absolute path of the group to open/create
 
         Returns
         -------
-        grp: `h5py._hl.group.Group`
+        grp : `~h5py._hl.group.Group`
             a valid group object at `path`
 
         """
@@ -332,6 +355,16 @@ class SM_serial(object):
 
 def _object_set_md(obj, meta_data, over_write):
     """Private function for setting meta-data
+
+    Parameters
+    ----------
+
+    obj : `~h5py.File`, `~h5py.Group`, or `~h5py.Dataset` object
+        The object to set the meta data of
+    meta_data : :py:class:`dict` like
+        The data to be set, must only contain types that play nice with `hdf`
+    over_write : bool
+        If existing data should be over-written
     """
     existing_keys = set(obj.attrs.keys())
 
@@ -344,7 +377,20 @@ def _object_set_md(obj, meta_data, over_write):
 
 def _subgroup_recurse(base_object, base_path):
     """
-    Private function for finding all the data sets under a given group
+    Private function for finding all the data sets under a given group.
+
+    Parameters
+    ----------
+
+    base_object : `~h5py.File`, `~h5py.Group`, or `~h5py.Dataset` object
+        The object to look for data sets in
+    base_path : :py:class:`str`
+        Relative path of the base object relative to where the search started
+
+    Returns
+    -------
+    name_list : `list`
+        list of relative paths of all data sets under the base object
     """
     name_list = []
     for key in base_object.keys():
