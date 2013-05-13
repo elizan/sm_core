@@ -128,6 +128,9 @@ class SM_serial(object):
         ret:  `numpy.ndarray`
             data is dataset
         '''
+
+        if not self._open:
+            raise RuntimeError("Trying to operate on a closed file")
         # TODO add error checking so the raw h5 errors don't propagate up
         return self._file[self._format_frame_name(frame_num)][data_set][:]
 
@@ -150,6 +153,9 @@ class SM_serial(object):
         additional kwargs are passed to backing structure
 
         '''
+
+        if not self._open:
+            raise RuntimeError("Trying to operate on a closed file")
         if not self._write:
             raise RuntimeError("trying to write to a read-only file")
 
@@ -189,9 +195,11 @@ class SM_serial(object):
         over_write: bool
             if existing meta-data will be over written, will raise error if True and file is read-only
         '''
+
+        if not self._open:
+            raise RuntimeError("Trying to operate on a closed file")
         if not self._write:
             raise RuntimeError("trying to write to a read-only file")
-
 
         grp = self._require_grp(self._format_frame_name(frame_num))
         _object_set_md(grp[dset_name], meta_data, over_write)
@@ -208,9 +216,11 @@ class SM_serial(object):
         over_write: bool
             if existing meta-data will be over written, will raise error if True and file is read-only
         '''
+
+        if not self._open:
+            raise RuntimeError("Trying to operate on a closed file")
         if not self._write:
             raise RuntimeError("trying to write to a read-only file")
-
 
         grp = self._require_grp(self._format_frame_name(frame_num))
         _object_set_md(grp, meta_data, over_write)
@@ -222,6 +232,9 @@ class SM_serial(object):
 
         Returns the meta-data dictionary for the given frame
         '''
+
+        if not self._open:
+            raise RuntimeError("Trying to operate on a closed file")
         #TODO make error messages helpful
 
         grp = self._open_group(self._format_frame_name(frame_num))
@@ -235,6 +248,9 @@ class SM_serial(object):
 
         Returns the meta-data dictionary for the given dset in the given frame
         '''
+
+        if not self._open:
+            raise RuntimeError("Trying to operate on a closed file")
         grp = self._open_group(self._format_frame_name(frame_num))
         dset = grp[dset_name]
         return dict(dset.attrs.iteritems())
@@ -247,6 +263,9 @@ class SM_serial(object):
 
         Returns a list of the data sets in the given frame number
         '''
+
+        if not self._open:
+            raise RuntimeError("Trying to operate on a closed file")
         grp = self._open_group(self._format_frame_name(frame_num))
         return _subgroup_recurse(grp, '')
 
@@ -268,6 +287,7 @@ class SM_serial(object):
             a valid group object at `path`
 
         """
+
         try:
             grp = self._file.require_group(path)
         except TypeError as e:
