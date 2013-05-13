@@ -103,7 +103,8 @@ def test_frame_md():
                'float': 1.0,
                'complex': 1 + 1j,
                'numpy': np.arange(5),
-               'string': 'abc'}
+               'string': 'abc',
+               'list': range(5)}
 
     with infra.path_provider() as base_path:
         # hacky version of generating a random name
