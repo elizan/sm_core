@@ -60,11 +60,9 @@ class SM_serial(object):
         '''
         return 'frame_{0:07d}'.format(N)
 
-    def __init__(self, fname, fmode=None):
-        '''Init function
-
-        Parameters
-        ----------
+    @classmethod
+    def open(cls, fname, fmode):
+        """
         fname: str
             full path to the file to open
         fmode: str or `None`
@@ -75,31 +73,45 @@ class SM_serial(object):
            w-: Create file, fail if exists
            w: create new file, WILL DELETE IF DOES EXIST
            Defaults to 'a'
-        '''
-        #It can be argued that this work should really be done in a
-        #class function, and then have the __init__ function take a
-        #h5py like object.
+        """
 
         if fmode is None:
             fmode = 'a'
 
         # TODO add brains to keep track if the objcet is writable and raise
         # reasonable errors
-        if fmode not in self.VALID_FILE_MODES:
+        if fmode not in cls.VALID_FILE_MODES:
             print "invalid mode, converting to 'a'"
             fmode = 'a'
-        self._file = h5py.File(fname, fmode)  # modulo patching up fmode
-        pass
+        _file = h5py.File(fname, fmode)  # modulo patching up fmode
 
-    # def __del__(self):
-    #     self.close()
+        write_flag = fmode != 'r'
+        return cls(_file, write_flag)
+
+    def __init__(self, file_obj, write_flg):
+        '''Init function
+
+        Parameters
+        ----------
+        file: `h5py.File`
+            `h5py.File` object to use and the backing store
+
+        '''
+        self._file = file_obj
+        self._write = write_flg
+        self._open = True
+
+    def __del__(self):
+        self.close()
 
     def close(self):
         '''Closes backing file
         '''
         # sort out if we need to track the open/close state
         #of the file to raise sensible errors
-        self._file.close()
+        if self._open:
+            self._file.close()
+            self._open = False
 
     def loads(self, frame_num, data_set):
         '''Reads the given data set from the given frame.
@@ -138,6 +150,9 @@ class SM_serial(object):
         additional kwargs are passed to backing structure
 
         '''
+        if not self._write:
+            raise RuntimeError("trying to write to a read-only file")
+
         # this needs to make sure the file is never left in a bad state
         data = np.asarray(data)
         grp = self._require_grp(self._format_frame_name(frame_num))
@@ -174,6 +189,9 @@ class SM_serial(object):
         over_write: bool
             if existing meta-data will be over written, will raise error if True and file is read-only
         '''
+        if not self._write:
+            raise RuntimeError("trying to write to a read-only file")
+
 
         grp = self._require_grp(self._format_frame_name(frame_num))
         _object_set_md(grp[dset_name], meta_data, over_write)
@@ -190,6 +208,10 @@ class SM_serial(object):
         over_write: bool
             if existing meta-data will be over written, will raise error if True and file is read-only
         '''
+        if not self._write:
+            raise RuntimeError("trying to write to a read-only file")
+
+
         grp = self._require_grp(self._format_frame_name(frame_num))
         _object_set_md(grp, meta_data, over_write)
 
@@ -232,6 +254,8 @@ class SM_serial(object):
         """Private function to handle requiring that a group exists.
         Returns the existing group it if exists, creates and returns
         the group if it does not.
+
+        Should only be called in function which expect a writable file
 
         Parameters
         ----------

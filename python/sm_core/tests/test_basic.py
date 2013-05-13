@@ -36,9 +36,11 @@ from contextlib import closing
 from sm_core import data_serialization as ds
 import os
 
+N = 6   # parameter for random name
+
 
 def _roundtrip_no_md(test_data):
-    N = 6   # parameter for random name
+
     M = 10  # number of frames to dump
     with infra.path_provider() as base_path:
         # hacky version of generating a random name
@@ -47,12 +49,12 @@ def _roundtrip_no_md(test_data):
                                          ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(N)),
                                          '.h5')))
 
-        with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'w')) as test_sms:
             for dset_name, dtype, data in test_data:
                 for k in range(M):
                     test_sms.dumps(k, dset_name, data)
 
-        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r')) as test_sms:
             for dset_name, dtype, data in test_data:
                 for k in range(M):
                     read_data = test_sms.loads(k, dset_name)
@@ -98,7 +100,6 @@ def test_complex_round_trip():
 
 
 def test_frame_md():
-    N = 6
     md_test = {'int': 1,
                'float': 1.0,
                'complex': 1 + 1j,
@@ -113,16 +114,15 @@ def test_frame_md():
                                          ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(N)),
                                          '.h5')))
 
-        with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'w')) as test_sms:
             test_sms.set_frame_md(0, md_test)
 
-        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r')) as test_sms:
             read_md = test_sms.get_frame_md(0)
             assert [read_md[k] == md_test[k] for k in md_test.keys()]
 
 
 def test_dset_md():
-    N = 6
     md_test = {'int': 1,
                'float': 1.0,
                'complex': 1 + 1j,
@@ -137,17 +137,16 @@ def test_dset_md():
                                          '.h5')))
         test_data = range(50)
         dset_name = 'test'
-        with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'w')) as test_sms:
             test_sms.dumps(0, dset_name, test_data, meta_data=md_test)
 
-        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r')) as test_sms:
             read_md = test_sms.get_dset_md(0, dset_name)
             print read_md
             assert [read_md[k] == md_test[k] for k in md_test.keys()]
 
 
 def test_dset_md_update():
-    N = 6
     md_test = {'int': 1,
                'float': 1.0,
                'complex': 1 + 1j,
@@ -168,25 +167,25 @@ def test_dset_md_update():
                                          '.h5')))
         test_data = range(50)
         dset_name = 'test'
-        with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'w')) as test_sms:
             test_sms.dumps(0, dset_name, test_data, meta_data=md_test)
 
-        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r')) as test_sms:
             read_md = test_sms.get_dset_md(0, dset_name)
             print read_md
             assert [read_md[k] == md_test[k] for k in md_test.keys()]
 
-        with closing(ds.SM_serial(tmp_fname, 'r+')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r+')) as test_sms:
             test_sms.update_dset_md(0, dset_name, meta_data=md_test2, over_write=True)
 
-        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r')) as test_sms:
             read_md = test_sms.get_dset_md(0, dset_name)
             print read_md
             assert [read_md[k] == md_test[k] for k in md_test2.keys()]
 
 
 def test_dset_md_update_fail():
-    N = 6
+
     md_test = {'int': 1,
                'float': 1.0,
                'complex': 1 + 1j,
@@ -207,15 +206,15 @@ def test_dset_md_update_fail():
                                          '.h5')))
         test_data = range(50)
         dset_name = 'test'
-        with closing(ds.SM_serial(tmp_fname, 'w')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'w')) as test_sms:
             test_sms.dumps(0, dset_name, test_data, meta_data=md_test)
 
-        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r')) as test_sms:
             read_md = test_sms.get_dset_md(0, dset_name)
             print read_md
             assert [read_md[k] == md_test[k] for k in md_test.keys()]
 
-        with closing(ds.SM_serial(tmp_fname, 'r+')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r+')) as test_sms:
             try:
                 test_sms.update_dset_md(0, dset_name, meta_data=md_test2, over_write=False)
                 # this should fail and raise a RuntimeError
@@ -225,7 +224,7 @@ def test_dset_md_update_fail():
                 # if this gets hit, something is wrong
                 assert False
 
-        with closing(ds.SM_serial(tmp_fname, 'r')) as test_sms:
+        with closing(ds.SM_serial.open(tmp_fname, 'r')) as test_sms:
             read_md = test_sms.get_dset_md(0, dset_name)
             print read_md
             assert [read_md[k] == md_test[k] for k in md_test.keys()]
