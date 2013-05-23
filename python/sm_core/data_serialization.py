@@ -97,12 +97,14 @@ class SM_serial(object):
         return cls(_file, write_flag)
 
     def __init__(self, file_obj, write_flg):
-        '''Init function
+        '''Init function.  You should use the py:func:`open` class method.
 
         Parameters
         ----------
-        file : `~h5py.File`
-            `~h5py.File` object to use and the backing store
+        file : `h5py.File`
+            `h5py.File` object to use and the backing store
+        write_flg: `bool`
+            if the backing file is write-able
 
         '''
         self._file = file_obj

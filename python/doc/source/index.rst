@@ -11,7 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 3
 
-   references/sm_core
+   references/sm_core.data_serialization
 
 Indices and tables
 ==================
