@@ -58,7 +58,7 @@ class SM_serial(object):
         ret : :py:class:`str`
             Properly formatted string
         '''
-        return 'frame_{0:07d}'.format(N)
+        return 'frames/time_{0:07d}'.format(N)
 
     @classmethod
     def open(cls, fname, fmode):
