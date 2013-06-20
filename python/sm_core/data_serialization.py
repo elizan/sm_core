@@ -44,7 +44,7 @@ class SM_serial(object):
     '''
     _VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a'}   #: valid file modes
 
-    def _format_frame_name(cls, N):
+    def _format_frame_name(self, N):
         '''Private function to format the name for the
         group that goes with frame N
 
@@ -58,7 +58,7 @@ class SM_serial(object):
         ret : :py:class:`str`
             Properly formatted string
         '''
-        return 'frames/time_{0:07d}'.format(N)
+        return 'time_{0:07d}'.format(N)
 
     @classmethod
     def open(cls, fname, fmode):
