@@ -31,6 +31,25 @@ import h5py
 import os.path
 import numpy as np
 
+'''
+/time_{07d}
+   /particles
+      /x
+      /y
+      /...
+   /statistics
+     /gofr
+     /..
+   /pair
+     /.
+   /triple
+     /.
+   /.
+/parameters
+  static parameters
+
+'''
+
 
 class SM_serial(object):
     '''
@@ -45,7 +64,7 @@ class SM_serial(object):
     '''
     _VALID_FILE_MODES = {'r', 'r+', 'w', 'w-', 'a'}   #: valid file modes
 
-    def _format_frame_name(self, N):
+    def _format_frame_name(self, N, post_fix=None):
         '''Private function to format the name for the
         group that goes with frame N
 
@@ -53,13 +72,18 @@ class SM_serial(object):
         ----------
         N : int
             The frame number
+        post_fix : str
+            if not `None` is appended to the frame group
 
         Returns
         -------
         ret : :py:class:`str`
             Properly formatted string
         '''
-        return 'time_{0:07d}'.format(N)
+        base = 'time_{0:07d}'.format(N)
+        if post_fix is not None:
+            base = base + '/' + post_fix
+        return base
 
     @classmethod
     def open(cls, fname, fmode):
@@ -101,6 +125,7 @@ class SM_serial(object):
         if new_file:
             _file.attrs['version'] = '0.1_chi'
             _file.attrs['writer'] = 'sm_core/python'
+            _file.require_group('parameters')
         write_flag = fmode != 'r'
         return cls(_file, write_flag)
 
@@ -154,7 +179,7 @@ class SM_serial(object):
         if not self._open:
             raise RuntimeError("Trying to operate on a closed file")
         # TODO add error checking so the raw h5 errors don't propagate up
-        return self._file[self._format_frame_name(frame_num)][data_set][:]
+        return self._file[self._format_frame_name(frame_num, 'particles')][data_set][:]
 
     def dumps(self, frame_num, data_set, data, meta_data=None, over_write=False, **kwargs):
         '''Adds data to the file.  The meta-data is associated with the data set.
@@ -182,7 +207,7 @@ class SM_serial(object):
 
         # this needs to make sure the file is never left in a bad state
         data = np.asarray(data)
-        grp = self._require_grp(self._format_frame_name(frame_num))
+        grp = self._require_grp(self._format_frame_name(frame_num, 'particles'))
         try:
             dset = grp[data_set]
         except KeyError:
@@ -222,7 +247,7 @@ class SM_serial(object):
         if not self._write:
             raise RuntimeError("trying to write to a read-only file")
 
-        grp = self._require_grp(self._format_frame_name(frame_num))
+        grp = self._require_grp(self._format_frame_name(frame_num, 'particles'))
         _object_set_md(grp[dset_name], meta_data, over_write)
 
     def set_frame_md(self, frame_num, meta_data, over_write=False):
@@ -243,7 +268,7 @@ class SM_serial(object):
         if not self._write:
             raise RuntimeError("trying to write to a read-only file")
 
-        grp = self._require_grp(self._format_frame_name(frame_num))
+        grp = self._require_grp(self._format_frame_name(frame_num, 'particles'))
         _object_set_md(grp, meta_data, over_write)
 
     def get_frame_md(self, frame_num):
@@ -264,7 +289,7 @@ class SM_serial(object):
             raise RuntimeError("Trying to operate on a closed file")
         #TODO make error messages helpful
 
-        grp = self._open_group(self._format_frame_name(frame_num))
+        grp = self._open_group(self._format_frame_name(frame_num, 'particles'))
         return dict(grp.attrs.iteritems())
 
     def get_dset_md(self, frame_num, dset_name):
@@ -286,7 +311,7 @@ class SM_serial(object):
 
         if not self._open:
             raise RuntimeError("Trying to operate on a closed file")
-        grp = self._open_group(self._format_frame_name(frame_num))
+        grp = self._open_group(self._format_frame_name(frame_num, 'particles'))
         dset = grp[dset_name]
         return dict(dset.attrs.iteritems())
 
@@ -303,7 +328,7 @@ class SM_serial(object):
 
         if not self._open:
             raise RuntimeError("Trying to operate on a closed file")
-        grp = self._open_group(self._format_frame_name(frame_num))
+        grp = self._open_group(self._format_frame_name(frame_num, 'particles'))
         return _subgroup_recurse(grp, '')
 
     def _require_grp(self, path):
