@@ -28,6 +28,7 @@
 #either expressed or implied, of the FreeBSD Project.
 #
 import h5py
+import os.path
 import numpy as np
 
 
@@ -91,8 +92,15 @@ class SM_serial(object):
         if fmode not in cls._VALID_FILE_MODES:
             print "invalid mode, converting to 'a'"
             fmode = 'a'
-        _file = h5py.File(fname, fmode)  # modulo patching up fmode
+        new_file = False
+        if (not os.path.isfile(fname) and fmode == 'a') or fmode == 'w':
+            # we are creating a new file !
+            new_file = True
 
+        _file = h5py.File(fname, fmode)  # modulo patching up fmode
+        if new_file:
+            _file.attrs['version'] = '0.1_chi'
+            _file.attrs['writer'] = 'sm_core/python'
         write_flag = fmode != 'r'
         return cls(_file, write_flag)
 
@@ -109,6 +117,10 @@ class SM_serial(object):
         '''
         self._file = file_obj
         self._write = write_flg
+        if 'version' in self._file.attrs:
+            self._version = self._file.attrs['version']
+        else:
+            self._version = None
         self._open = True
 
     def __del__(self):
