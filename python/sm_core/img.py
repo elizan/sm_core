@@ -148,7 +148,7 @@ class Series_wrapper(Image_wrapper):
             return None
         basename, num, ext = res.groups()
         padding = len(num)
-        fmt_str = basename + '{:' + str(padding) + '}.' + ext
+        fmt_str = basename + '{:0' + str(padding) + '}.' + ext
         return cls(fmt_str, img_num_offset=int(num))
 
     def __init__(self, fmt_string, img_num_offset=0):
