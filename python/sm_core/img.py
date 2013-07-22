@@ -30,6 +30,7 @@
 
 
 from __future__ import division
+from abc import ABCMeta, abstractmethod
 
 import os.path
 import datetime
@@ -39,21 +40,113 @@ import numpy as np
 import re
 
 
-# needed for plotting
-class Image_wrapper(object):
-    '''Base class for wrapping image sequences'''
+class No_Such_Frame(Exception):
+    '''
+    An exception to be raised when the requested frame does not exist
+    '''
+    pass
 
+
+class Image_Stream(object):
+    '''
+    An ABC for a stream of images.  This base class
+    only requires that iteration be defined.
+    '''
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def __iter__(self):
+        '''
+        `Image_Stream` objects must implement `__iter__`.
+
+        Yields the data as a (M, N) ndarray or as a (M, N, C) ndarray
+        '''
+        while False:
+            yield None
+
+    @abstractproperty
+    def frame_size(self):
+        '''
+        The dimensions of each frame.  It is assumed that _all_ frames
+        in the stream are the same size.
+
+        Returns
+        -------
+        dims : tuple
+            A length d tuple where d is the dimension of the image
+        '''
+        return ()
+
+    @abstractproperty
+    def pixel_dtype(self):
+        '''
+        The data type of a single pixel.  Must be constant over stream.
+
+        Returns
+        -------
+        dtype : np.dtype
+            The data type of the pixel data.
+        '''
+        return None
+
+    def channels(self):
+        '''
+        Returns the number of channels per pixel.  Must be constant over stream
+
+        Returns
+        -------
+        channel_count : int
+            The number of channels in each pixel
+        '''
+        return 0
+
+
+class Image_Sequence(Image_Stream):
+    '''Base class for wrapping image sequences'''
     def __getitem__(self, key):
+        '''
+        Magic to make slicing work correctly
+        '''
         if type(key) == slice:
             return map(self.get_frame, range(self.image_count)[key])
 
         return self.get_frame(key)
 
+    @abstractmethod
+    def __len__(self):
+        pass
+
+    @abstractproperty
+    def path(self):
+        '''
+        The path of the underlying data source
+
+        Returns
+        -------
+        path : str
+            The path of the underlying data type
+        '''
+        return ''
+
+    @abstractmethod
     def get_frame(self, j):
+        '''
+        Get frame j from the sequence
+
+        Parameters
+        ----------
+        j : int
+            The frame to extract from the sequnce
+
+        Returns
+        -------
+        img : np.ndarray
+            An `np.ndarry` with
+        '''
         raise NotImplementedError
 
 
-class Stack_wrapper(Image_wrapper):
+class Stack_wrapper(Image_Stream):
     def __init__(self, fname):
         '''fname is the full path '''
         self.im = PIL.Image.open(fname)
@@ -75,21 +168,27 @@ class Stack_wrapper(Image_wrapper):
                 break
 
         self._len = j
-        self._parse_xml_string = _parse_xml_string_mm
 
     def __len__(self):
         return self._len
 
-    def get_frame(self, j):
+    def get_frame(self, j, cast_dtype=None):
         '''Extracts the jth frame from the image sequence.
-        if the frame does not exist return None'''
+        if the frame does not exist Raises No_such_frame exception'''
+
         try:
             self.im.seek(j)
         except EOFError:
-            return None
+            raise No_such_frame("There is no frame" +
+                                " {} in {} which has length {}".format(j, self.path, len(self))
 
         self.cur = self.im.tell()
-        return np.reshape(self.im.getdata(), self.im_sz).astype('uint16')
+        data = np.reshape(self.im.getdata(), self.im_sz)
+        if cast_dtype is not None:
+            return data.astype(cast_dtype)
+
+        return data
+
 
     def __iter__(self):
         self.im.seek(0)
@@ -106,6 +205,12 @@ class Stack_wrapper(Image_wrapper):
             self.cur = self.im.tell()
             raise StopIteration
         return np.reshape(self.im.getdata(), self.im_sz)
+
+
+class Stack_wrapper_mm(Stack_wrapper):
+    def __init__(self, *args, **kwangs):
+        Stack_wrapper.__init__(self)
+        self._parse_xml_string = _parse_xml_string_mm
 
     def get_meta(self, j):
         '''
@@ -133,7 +238,7 @@ class Stack_wrapper(Image_wrapper):
         return self._parse_xml_string(xml_str)
 
 
-class Series_wrapper(Image_wrapper):
+class Series_wrapper(Image_wrapper_base):
     prog = re.compile(r'(.*?)([0-9]+)\.([a-zA-Z]+)')
 
     @classmethod
